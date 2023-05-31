@@ -1,11 +1,14 @@
 package me.haas.demoinflearnrestapi.events;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
@@ -20,7 +23,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringRunner.class)
-@WebMvcTest
+//@WebMvcTest
+@SpringBootTest
+@AutoConfigureMockMvc
 public class EventControllerTests {
 
     @Autowired
@@ -32,17 +37,17 @@ public class EventControllerTests {
              //MockMvc 클래스는 요청을 만들수 있고 응답을 검증할수 있는 Spring mvc Test에 있어 가장 핵심적인 클래스
              //MockMvc는 웹서버를 띄우지 않기 때문에 좀 더 빠르지만 DispatcherServlet 을 만들기 때문에 단위 테스트보단 빠르지 않다
 
-
     @Autowired
     ObjectMapper objectMapper;
 
-    @MockBean
-    EventRepository eventRepository;
+//    @MockBean
+//    EventRepository eventRepository;
 
     @Test
     public void createEvent() throws Exception {
 
         Event event = Event.builder()
+                        .id(100)
                         .name("Spring")
                         .beginEnrollmentDateTime(LocalDateTime.of(2023,05,01,16,00))
                         .closeEnrollmentDateTime(LocalDateTime.of(2023,05,02,16,00))
@@ -52,10 +57,12 @@ public class EventControllerTests {
                         .maxPrice(20000)
                         .limitOfEnrollment(100)
                         .location("강남 D2 스타터 팩토리")
+                        .free(true)
+                        .offline(false)
+                        .eventStatus(EventStatus.PUBLISHED)
                         .build();
 
-        event.setId(10);
-        Mockito.when(eventRepository.save(event)).thenReturn(event);
+//        Mockito.when(eventRepository.save(event)).thenReturn(event);
 
         mockMvc.perform(post("/api/events/")
                         .contentType(MediaType.APPLICATION_JSON_UTF8)
@@ -66,8 +73,19 @@ public class EventControllerTests {
                 .andExpect(jsonPath("id").exists())
                 .andExpect(header().exists(HttpHeaders.LOCATION))
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE,MediaTypes.HAL_JSON_VALUE))
+                .andExpect(jsonPath("id").value(Matchers.not(100)))
+                .andExpect(jsonPath("free").value(Matchers.not(true)))
+                .andExpect(jsonPath("eventStatus").value(EventStatus.DRAFT.name()))
         ;
     }
 
+    @Test
+    public void createEvent_Bad_Request_Empty_Input() throws Exception {
+        EventDto eventDto = EventDto.builder().build();
 
+        this.mockMvc.perform(post("/api/events")
+                        .contentType(MediaType.APPLICATION_JSON_UTF8)
+                        .content(this.objectMapper.writeValueAsString(eventDto)))
+                .andExpect(status().isBadRequest());
+    }
 }
