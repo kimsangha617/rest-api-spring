@@ -2,6 +2,7 @@ package me.haas.demoinflearnrestapi.events;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
@@ -14,7 +15,6 @@ import javax.validation.Valid;
 import java.net.URI;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Controller
 @RequestMapping(value ="/api/events", produces = MediaTypes.HAL_JSON_VALUE)
@@ -38,10 +38,18 @@ public class EventController {
         }
 
         Event event = modelMapper.map(eventDto, Event.class);
+        event.update();
         Event newEvent = this.eventRepository.save(event);
-        URI createdUri = linkTo(EventController.class).slash(newEvent.getId()).toUri();
-//        event.setId(10);
-        return ResponseEntity.created(createdUri).body(event); // created 를 보낼때는 항상 URI 가 있어야한다
+
+        // HATEOAS 관련된 링크 추가하는 부분
+        WebMvcLinkBuilder selfLinkBuilder = linkTo(EventController.class).slash(newEvent.getId());
+        URI createdUri = selfLinkBuilder.toUri();
+        //TODO HATEOAS 적용
+        //TODO Location 헤더 정보에 URI 담기
+        EventResource eventResource = new EventResource(event);
+        eventResource.add(linkTo(EventController.class).withRel("query-events"));
+        eventResource.add(selfLinkBuilder.withRel("update-event"));
+        return ResponseEntity.created(createdUri).body(eventResource); // created 를 보낼때는 항상 URI 가 있어야한다
     }
 
 }
